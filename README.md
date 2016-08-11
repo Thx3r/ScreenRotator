@@ -1,4 +1,7 @@
 # ScreenRotator
+
+**FIXED FOR ASUS T 100 - T 100 TA**
+
 Small applet for rotating the screen on Unity Desktop
 
 ![Updated Icon](https://raw.githubusercontent.com/frecel/ScreenRotator/master/Screenshot%20from%202016-07-05%2013-03-54.png)

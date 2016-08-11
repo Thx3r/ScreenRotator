@@ -2,12 +2,30 @@
 
 import os
 import signal
-from subprocess import call
+from subprocess import call , check_output
 from gi.repository import Gtk
 from gi.repository import AppIndicator3 as AppIndicator
 
 APPINDICATOR_ID = "screenrotator"
-orientation = "normal"
+
+
+# Adding ASUS T100 TA Vars ...
+
+XRANDROUT="DSI1"
+
+cmd = r"""xinput --list | grep SIS | sed 's/.*id=\([0-9]*\).*/\1/'; xinput --list | grep "ASUS.*Base.*pointer" | sed 's/.*id=\([0-9]*\).*/\1/'"""
+INDEVS = check_output( cmd , shell=True ).decode().split("\n")
+INDEVS.pop()
+
+cmd = r"""xrandr -q --verbose | grep DSI1 | cut -d" " -f6"""
+
+
+NEW_ROT="normal"
+
+ACC_X = check_output('cat /sys/bus/iio/devices/iio\:device0/in_accel_x_raw', shell=True).decode().replace("\n","")
+ACC_Y = check_output('cat /sys/bus/iio/devices/iio\:device0/in_accel_y_raw', shell=True).decode().replace("\n","")
+
+#END OF VARS
 
 def main():
     indicator = AppIndicator.Indicator.new(APPINDICATOR_ID, os.path.abspath('./icon.svg'), AppIndicator.IndicatorCategory.SYSTEM_SERVICES)
@@ -24,14 +42,11 @@ def build_menu():
     item_brightness_down = Gtk.MenuItem("Decrease Brightness")
     item_brightness_down.connect('activate', decrease_brightness)
     menu.append(item_brightness_down)
-    #rotate
-    item_rotate = Gtk.MenuItem('Rotate')
+    #Landscape
+    item_rotate = Gtk.MenuItem('Rotate Screen')
     item_rotate.connect('activate', rotate_screen)
     menu.append(item_rotate)
-    #flip
-    item_flip = Gtk.MenuItem('Flip')
-    item_flip.connect('activate', flip_screen)
-    menu.append(item_flip)
+     
     #seperator
     seperator = Gtk.SeparatorMenuItem()
     menu.append(seperator)
@@ -43,22 +58,16 @@ def build_menu():
     return menu
 
 def rotate_screen(source):
-    global orientation
-    if orientation == "normal":
+    orientation = check_output( cmd , shell=True ).decode().replace("\n","")
+    if orientation == "normal" :
         direction = "left"
-    elif orientation == "left":
-        direction ="normal"
-    call(["xrandr", "-o", direction])
-    orientation = direction
-
-def flip_screen(source):
-    global orientation
-    if orientation == "normal":
-        direction = "inverted"
-    elif orientation == "inverted":
-        direction ="normal"
-    call(["xrandr", "-o", direction])
-    orientation = direction
+        CTM = ["0","-1","1","1","0","0","0","0","1"]
+    else :
+        direction = "normal"
+        CTM = ["1","0","0","0","1","0","0","0","1"]
+    call(["xrandr","--output",XRANDROUT, "--rotate",direction])
+    for i in INDEVS :
+        call(["xinput","set-prop",i,'Coordinate Transformation Matrix']+CTM)
 
 
 def increase_brightness(source):
@@ -69,7 +78,6 @@ def decrease_brightness(source):
 
 if __name__ == "__main__":
     #make sure the screen is in normal orientation when the script starts
-    call(["xrandr", "-o", orientation])
     #keyboard interrupt handler
     signal.signal(signal.SIGINT, signal.SIG_DFL)
     main()
